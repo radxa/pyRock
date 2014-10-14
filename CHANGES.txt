@@ -1,0 +1,9 @@
+Changelog
+=========
+    * pyRock 0.0.1 (14 OCT 2014)
+		* First release
+		* Support rk3188 only currently
+        * GPIO input/output setmux/getmux functions
+        * User friendly GPIO pin names
+        * Only one blink led example
+        * Support both Python2 and Python3
