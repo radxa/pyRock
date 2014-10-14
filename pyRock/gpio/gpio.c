@@ -123,7 +123,6 @@ static PyObject* py_getmux(PyObject* self, PyObject* args) {
  */
 static PyObject* py_init(PyObject* self, PyObject* args) {
 
-	printf("py_init\n");
     if(rockchip_gpio_init() < 0){
         return PyErr_SetFromErrno(PyExc_IOError);
     }
@@ -191,7 +190,6 @@ PyMODINIT_FUNC
     module = PyModule_Create(&module_def);
 #else
     module = Py_InitModule("gpio", module_methods);
-	printf("Py_InitModule...\n");
 #endif
 
 
@@ -212,15 +210,12 @@ PyMODINIT_FUNC
 			for(i = 0; i < 8; i++) {
 			
 				sprintf(name, "pin%dp%c%d", bank, x+'a', i);
-				printf("name: %s \n", name);
 				PyModule_AddObject(module, name, Py_BuildValue("i", pin));
 
 				sprintf(name, "PIN%dP%c%d", bank, x+'A', i);
-				printf("name: %s \n", name);
 				PyModule_AddObject(module, name, Py_BuildValue("i", pin));
 
 				pin++;
-				printf("pin: %d \n", pin);
 			}
 		}
 	}
