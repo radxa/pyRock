@@ -9,9 +9,13 @@ http://radxa.com/Rock/extension_header
 When using GPIO make sure that the desired gpio is not used by another periphery.
 
 INSTALL
-===========
+============
     sudo apt-get install gcc python-dev
     python setup.py install
+
+UNINSTALL
+============
+    rm -rf /usr/local/lib/python2.7/dist-packages/pyRock*
 
 GPIO METHODS
 ============
