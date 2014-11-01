@@ -52,7 +52,6 @@ if not os.getegid() == 0:
 
 from time import sleep
 
-import smbus
 import pyRock.I2C as I2C
 
 # initialize i2c-device
