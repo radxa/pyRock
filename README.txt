@@ -33,10 +33,10 @@ The available constants are:
     ====            =========
     HIGH        ->      1
     LOW         ->      0
-    INPUT       ->      0
-    OUPTUT      ->      1
-    PULLUP      ->      1
-    PULLDOWN    ->      2
+    INPUT       ->      1
+    OUPTUT      ->      0
+    PULLUP      ->      0
+    PULLDOWN    ->      1
 
 
 The gpio are named in following way:
