@@ -30,7 +30,6 @@ if not os.getegid() == 0:
     sys.exit('Script must be run as root')
 
 from time import sleep
-
 from pyRock.gpio import gpio
 import pyRock.MCP230xx as MCP
 
@@ -42,8 +41,6 @@ led = mcp.GPB0
 
 try:
     print ("Press CTRL+C to exit")
-
-    mcp.output(led, gpio.HIGH)
 
     while True:
 	mcp.output(led, gpio.HIGH)
