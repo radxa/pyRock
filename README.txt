@@ -59,3 +59,7 @@ be assigned to a number type variable.
     15
 
 It's important that you run your python script as root!
+
+DISCUSSION
+============
+http://talk.radxa.com/topic/601/pyrock-python-gpio-module-is-released
