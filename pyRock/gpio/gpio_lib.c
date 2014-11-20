@@ -186,7 +186,7 @@ int rockchip_gpio_set_mux(unsigned int pin, unsigned int mux) {
 
 	struct rockchip_pin_ctrl *info = rkxx_pin_ctrl;
 	struct rockchip_pin_bank *bank = pin_to_bank(pin);
-	int iomux_num = (pin / 8);
+	int iomux_num = ((pin - bank->pin_base) / 8);
 	unsigned int data, offset, mask;
 	unsigned char bit;
 	void *reg_mapped_base;
@@ -231,7 +231,7 @@ int rockchip_gpio_get_mux(unsigned int pin) {
 
 	struct rockchip_pin_ctrl *info = rkxx_pin_ctrl;
 	struct rockchip_pin_bank *bank = pin_to_bank(pin);
-	int iomux_num = (pin / 8);
+	int iomux_num = ((pin - bank->pin_base) / 8);
 	unsigned int val, offset, mask;
 	unsigned char bit;
 	void *reg_mapped_base;
