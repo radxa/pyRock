@@ -11,11 +11,13 @@ When using GPIO make sure that the desired gpio is not used by another periphery
 INSTALL
 ============
     sudo apt-get install gcc python-dev
-    python setup.py install
+    git clone https://github.com/radxa/pyRock.git
+    cd pyRock
+    sudo python setup.py install
 
 UNINSTALL
 ============
-    rm -rf /usr/local/lib/python2.7/dist-packages/pyRock*
+    sudo rm -rf /usr/local/lib/python2.7/dist-packages/pyRock*
 
 GPIO METHODS
 ============
