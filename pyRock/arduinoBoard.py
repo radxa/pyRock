@@ -6,22 +6,26 @@
 
 import os
 import sys
-import math
 from pyRock.radxa_gpio import radxa_gpio
+from pydispatch import dispatcher
 import pyRock.MCP230xx as MCP
 
 class ArduinoBoard:
     def __init__(self):
 	# initialize the Board:
-	# 1.) initialize the gpio's
+	# initialize the gpio's
         ArduinoBoard.gpio = radxa_gpio()
-	# 2.) define the button objects
+	# setup the dispatcher signals for button events
+	ArduinoBoard.SIGNAL_BUTTON_CHANGED  = 'button_changed'
+	ArduinoBoard.SIGNAL_BUTTON_PRESSED  = 'button_pressed'
+	ArduinoBoard.SIGNAL_BUTTON_RELEASED = 'button_released'
+	# define the button objects
 	self.button1 = self.Button(1, ArduinoBoard.gpio.j8p7)
 	self.button2 = self.Button(2, ArduinoBoard.gpio.j8p8)
 	self.button = []
 	self.button.append(self.button1)
 	self.button.append(self.button2)
-	# 3.) define  the led objects
+	# define  the led objects
 	self.led1 = self.Led(1, ArduinoBoard.gpio.j8p9)
 	self.led2 = self.Led(2, ArduinoBoard.gpio.j8p20)
 	self.led3 = self.Led(3, ArduinoBoard.gpio.j8p22)
@@ -39,18 +43,18 @@ class ArduinoBoard:
 	self.led.append(self.led6)
 	self.led.append(self.led7)
 	self.led.append(self.led8)
-	# 4.) define the display object
+	# define the display object
 	# TODO ....
 
     def printNumberWithLeds(self, number):
         if number > 255 :
             number = 255
         for i in range(0, 8, 1):
-            if (number / pow(2, (7-i))) > 0:
+            if (number / (2 << (7-i))) > 0:
                 self.led[i].setOn()
 	    else:
 		self.led[i].setOff()
-            number = number % pow(2, (7-i))
+            number = number % (2 << (7-i))
 
 
     class Led:
@@ -82,10 +86,13 @@ class ArduinoBoard:
 	    if self.state != ArduinoBoard.gpio.input(self.pin):
 		self.state = ArduinoBoard.gpio.input(self.pin)
 		self.isPressed = self.evaluate(self.state, self.logicLevel)
+		dispatcher.send( signal=ArduinoBoard.SIGNAL_BUTTON_CHANGED, sender=self.id )
 		if self.isPressed == 0:
-		    print "Button %d is released" % self.id
+		    dispatcher.send( signal=ArduinoBoard.SIGNAL_BUTTON_RELEASED, sender=self.id )
+		    #print "Button %d is released" % self.id
 		else:
-		    print "Button %d is pressed" % self.id
+		    dispatcher.send( signal=ArduinoBoard.SIGNAL_BUTTON_PRESSED, sender=self.id )
+		    #print "Button %d is pressed" % self.id
 	def evaluate(self, state, logicLevel):
 	    if logicLevel == "activeLow":
 		if state == 0:

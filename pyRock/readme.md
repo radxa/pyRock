@@ -30,3 +30,12 @@ radxa_gpio.py
 Wrapper class for gpio module from gruuvinrob. It takes care of the gpio initialisation and the root permission.
 Further, the gpio pins can be accessed by it's physical location (Header/headerpin), e.g. .j8p19 instead of .PIN0PD7  
 example usage: pyRock/examples/radxaGpioBlinkLed.py
+
+arduinoBoard.py
+---------------
+Class to handle the [Arduino Shield Rev.A](http://talk.radxa.com/topic/839/radxa-rock-arduino-board-rev-a). It makes
+use of the radxa_gpio.py (using the gpio library) to interact with the buttons and the leds of the board. It
+also uses the MCP230xx.py (using the I2C.py) to communicate over the mcp23017 i2c gpio expander to the oled display.
+The button events and actions are decoupled by using the publish/subscriber-pattern. For this purpose, the python 
+module pydispatch is used. Unfortunatly, you have to install this seperatly: pip install PyDispatcher. Sorry for that!    
+example usage: pyRock/examples/testArduinoBoard.py
