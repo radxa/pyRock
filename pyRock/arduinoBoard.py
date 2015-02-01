@@ -6,11 +6,14 @@
 
 import os
 import sys
+from time import sleep
 from pyRock.radxa_gpio import radxa_gpio
 from pydispatch import dispatcher
 import pyRock.MCP230xx as MCP
 
+
 class ArduinoBoard:
+
     def __init__(self):
 	# initialize the Board:
 	# initialize the gpio's
@@ -44,7 +47,7 @@ class ArduinoBoard:
 	self.led.append(self.led7)
 	self.led.append(self.led8)
 	# define the display object
-	# TODO ....
+	self.display = self.Display()
 
     def printNumberWithLeds(self, number):
         if number > 255 :
@@ -57,30 +60,168 @@ class ArduinoBoard:
             number = number % (2 << (7-i))
 
 
+    class Display:
+
+	def __init__(self):
+ 	    # define a lot of display constants
+            # commands
+            self.LCD_CLEARDISPLAY   = 0x01
+            self.LCD_RETURNHOME     = 0x02
+            self.LCD_ENTRYMODESET   = 0x04
+            self.LCD_DISPLAYCONTROL = 0x08
+            self.LCD_CURSORSHIFT    = 0x10
+            self.LCD_FUNCTIONSET    = 0x28
+            self.LCD_SETCGRAMADDR   = 0x40
+            self.LCD_SETDDRAMADDR   = 0x80
+            # flags for display entry mode
+            self.LCD_ENTRYRIGHT     = 0x00
+            self.LCD_ENTRYLEFT      = 0x02
+            self.LCD_ENTRYSHIFTINC  = 0x01
+            self.LCD_ENTRYSHIFTDEC  = 0x00
+            # flags for display on/off control
+            self.LCD_DISPLAYON      = 0x04
+            self.LCD_DISPLAYOFF     = 0x00
+            self.LCD_CURSORON       = 0x02
+            self.LCD_CURSOROFF      = 0x00
+            self.LCD_BLINKON        = 0x01
+            self.LCD_BLINKOFF       = 0x00
+            # flags for display/cursor shift
+            self.LCD_DISPLAYMOVE    = 0x08
+            self.LCD_CURSORMOVE     = 0x00
+            self.LCD_MOVERIGHT      = 0x04
+            self.LCD_MOVELEFT       = 0x00
+            # flags for function set
+            self.LCD_8BITMODE       = 0x10
+            self.LCD_4BITMODE       = 0x00
+            self.LCD_JAPANESE       = 0x00
+            self.LCD_EUROPEAN_I     = 0x01
+            self.LCD_RUSSIAN        = 0x02
+            self.LCD_EUROPEAN_II    = 0x03
+	    # initialize gpio expander and used IO's
+            self.mcp      = MCP.MCP23017(0x20)
+            self.RS_PIN   = self.mcp.GPA7
+            self.RW_PIN   = self.mcp.GPA6
+            self.EN_PIN   = self.mcp.GPA5
+            self.D4_PIN   = self.mcp.GPB4
+            self.D5_PIN   = self.mcp.GPB5
+            self.D6_PIN   = self.mcp.GPB6
+            self.D7_PIN   = self.mcp.GPB7
+            self.BUSY_PIN = self.D7_PIN
+	    self.DisplayFunction = self.LCD_FUNCTIONSET | self.LCD_4BITMODE
+
+        def writeRegister(self, register, value):
+            self.mcp._i2c.write8(register, value)
+
+	def readRegister(self, register):
+	    return self.mcp._i2c.readU8(register)
+
+	def pulseEnable(self):
+	    self.gpioA = self.readRegister(self.mcp.GPIOA)
+	    # set EnablePin
+	    self.gpioA = self.gpioA | 0x20
+	    self.writeRegister(self.mcp.GPIOA, self.gpioA)
+	    # wait 50 microseconds ... well, try without it first.
+	    # clear EnablePin
+	    self.gpioA = self.gpioA & 0xDF
+	    self.writeRegister(self.mcp.GPIOA, self.gpioA)
+
+	def write4bits(self, value):
+	    regValue = value & 0x0F
+	    regValue = regValue << 4
+	    self.writeRegister(self.mcp.GPIOB, regValue)
+	    # wait 50 microseconds ... well, try without it first.
+	    self.pulseEnable()
+
+	def send(self, value, mode):
+	    if mode > 0:
+		self.writeRegister(self.mcp.GPIOA, 0x80)
+	    else:
+		self.writeRegister(self.mcp.GPIOA, 0x00)
+	    self.write4bits(value>>4)
+	    self.write4bits(value)
+
+	def command(self, value):
+	    self.send(value, 0)
+	    self.waitForReady()
+
+	def write(self, value):
+	    self.send(value, 1)
+	    self.waitForReady()
+
+	def waitForReady(self):
+	    self.busy = 1
+	    self.mcp.setup(self.BUSY_PIN, ArduinoBoard.gpio.INPUT)
+	    self.writeRegister(self.mcp.GPIOA, 0x40)
+	    while self.busy > 0:
+		self.writeRegister(self.mcp.GPIOA, 0x60)
+		# wait 10 microseconds ... well, try without it first.
+		self.busy = self.mcp.input(self.BUSY_PIN)
+		self.writeRegister(self.mcp.GPIOA, 0x40)
+		self.pulseEnable()
+	    self.mcp.setup(self.BUSY_PIN, ArduinoBoard.gpio.OUTPUT)
+	    self.writeRegister(self.mcp.GPIOA, 0x00)
+
+	def begin(self, cols, lines):
+	    self.numlines = lines
+	    self.currline = 0
+	    # define every IO of the mcp as output
+	    self.writeRegister(self.mcp.IODIRA, 0x00)
+	    self.writeRegister(self.mcp.IODIRB, 0x00)
+	    self.writeRegister(self.mcp.GPIOA, 0x00)
+	    sleep(0.05)
+	    self.writeRegister(self.mcp.GPIOB, 0x00)
+	    self.write4bits(0x03)
+	    sleep(0.005)
+	    self.write4bits(0x08)
+	    sleep(0.005)
+	    self.write4bits(0x02)
+	    sleep(0.005)
+	    self.write4bits(0x02)
+	    sleep(0.005)
+	    self.write4bits(0x08)
+	    sleep(0.005)
+	    self.command(0x08)
+	    sleep(0.005)
+	    self.command(0x01)
+	    sleep(0.005)
+	    self.command(0x06)
+	    sleep(0.005)
+	    self.command(0x02)
+	    sleep(0.005)
+	    self.command(0x0C)
+
+
     class Led:
+
 	def __init__(self, id, pin):
 	    self.id = id
 	    self.pin = pin
 	    self.isOn = False
+
 	def setOn(self):
             ArduinoBoard.gpio.output(self.pin, ArduinoBoard.gpio.HIGH)
             self.isOn = True
+
 	def setOff(self):
 	    ArduinoBoard.gpio.output(self.pin, ArduinoBoard.gpio.LOW)
 	    self.isOn = False
+
 	def toggle(self):
 	    if self.isOn == True:
 		self.setOff()
 	    else:
 		self.setOn()
 
+
     class Button:
+
 	def __init__(self, id, pin, logicLevel="activeLow"):
 	    self.id = id
 	    self.pin = pin
 	    self.logicLevel = logicLevel
 	    self.state = ArduinoBoard.gpio.input(self.pin)
 	    self.isPressed = self.evaluate(self.state, self.logicLevel)
+
 	def check(self):
 	    #print "button %d is %d" % (self.id, ArduinoBoard.gpio.input(self.pin))
 	    if self.state != ArduinoBoard.gpio.input(self.pin):
@@ -93,6 +234,7 @@ class ArduinoBoard:
 		else:
 		    dispatcher.send( signal=ArduinoBoard.SIGNAL_BUTTON_PRESSED, sender=self.id )
 		    #print "Button %d is pressed" % self.id
+
 	def evaluate(self, state, logicLevel):
 	    if logicLevel == "activeLow":
 		if state == 0:

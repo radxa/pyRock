@@ -60,6 +60,7 @@ try:
     board.printNumberWithLeds(number)
     print "leds show number %d" % number
     print ("Press CTRL+C to exit")
+    board.display.begin(16, 2)
 
     while True:
 	for i in range(len(board.button)):

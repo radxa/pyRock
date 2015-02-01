@@ -54,9 +54,9 @@ class MCP230xxBase(object):
 		"""
 		self._validate_pin(pin)
 		# Set bit to 1 for input or 0 for output.
-		if value == GPIO.INPUT:
+		if value == 1:
 			self.iodir[int(pin/8)] |= 1 << (int(pin%8))
-		elif value == GPIO.OUTPUT:
+		elif value == 0:
 			self.iodir[int(pin/8)] &= ~(1 << (int(pin%8)))
 		else:
 			raise ValueError('Unexpected value.  Must be GPIO.INPUT or GPIO.OUTPUT.')
@@ -142,6 +142,10 @@ class MCP23017(MCP230xxBase):
 	IODIR    = 0x00
 	GPIO     = 0x12
 	GPPU     = 0x0C
+	IODIRA   = 0x00
+	IODIRB   = 0x01
+	GPIOA    = 0x12
+	GPIOB    = 0x13
 
 	GPA0 =  0
 	GPA1 =  1
