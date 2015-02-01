@@ -70,7 +70,7 @@ class radxa_gpio:
         gpio.init()
 
     def input(self, pin):
-        return gpio.input(self, pin)
+        return gpio.input(pin)
 
     def output(self, pin, state):
         return gpio.output(pin, state)
