@@ -6,7 +6,7 @@
 
 import os
 import sys
-from time import sleep
+import time
 from pyRock.radxa_gpio import radxa_gpio
 from pydispatch import dispatcher
 import pyRock.MCP230xx as MCP
@@ -107,7 +107,12 @@ class ArduinoBoard:
             self.D6_PIN   = self.mcp.GPB6
             self.D7_PIN   = self.mcp.GPB7
             self.BUSY_PIN = self.D7_PIN
-	    self.DisplayFunction = self.LCD_FUNCTIONSET | self.LCD_4BITMODE
+	    # initialize display control, function and mode registers
+	    self.displaycontrol = self.LCD_DISPLAYON | self.LCD_CURSOROFF | self.LCD_BLINKOFF
+	    self.displayfunction = self.LCD_4BITMODE
+	    self.displaymode = self.LCD_ENTRYLEFT | self.LCD_ENTRYSHIFTDEC
+	    # Offset for up to 4 rows
+	    self.LCD_ROW_OFFSETS = (0x00, 0x40, 0x14, 0x54)
 
         def writeRegister(self, register, value):
             self.mcp._i2c.write8(register, value)
@@ -120,7 +125,7 @@ class ArduinoBoard:
 	    # set EnablePin
 	    self.gpioA = self.gpioA | 0x20
 	    self.writeRegister(self.mcp.GPIOA, self.gpioA)
-	    # wait 50 microseconds ... well, try without it first.
+	    self._delay_microseconds(50)
 	    # clear EnablePin
 	    self.gpioA = self.gpioA & 0xDF
 	    self.writeRegister(self.mcp.GPIOA, self.gpioA)
@@ -129,7 +134,7 @@ class ArduinoBoard:
 	    regValue = value & 0x0F
 	    regValue = regValue << 4
 	    self.writeRegister(self.mcp.GPIOB, regValue)
-	    # wait 50 microseconds ... well, try without it first.
+	    self._delay_microseconds(50)
 	    self.pulseEnable()
 
 	def send(self, value, mode):
@@ -154,41 +159,117 @@ class ArduinoBoard:
 	    self.writeRegister(self.mcp.GPIOA, 0x40)
 	    while self.busy > 0:
 		self.writeRegister(self.mcp.GPIOA, 0x60)
-		# wait 10 microseconds ... well, try without it first.
+		self._delay_microseconds(10)
 		self.busy = self.mcp.input(self.BUSY_PIN)
 		self.writeRegister(self.mcp.GPIOA, 0x40)
 		self.pulseEnable()
 	    self.mcp.setup(self.BUSY_PIN, ArduinoBoard.gpio.OUTPUT)
 	    self.writeRegister(self.mcp.GPIOA, 0x00)
 
+	def _delay_microseconds(self, microseconds):
+	    end = time.time() + (microseconds/1000000.0)
+	    while time.time() < end:
+		pass
+
+	def message(self, text):
+	    for char in text:
+		if char == '\n':
+		    self.currline += 1
+		    # Move to left or right side depending on text direction
+		    col = 0 if self.displaymode & self.LCD_ENTRYLEFT > 0 else self.numcols - 1
+		    self.setCursor(col, self.currline)
+		else:
+		    self.write(ord(char))
+
 	def begin(self, cols, lines):
+	    self.numcols = cols
 	    self.numlines = lines
 	    self.currline = 0
 	    # define every IO of the mcp as output
 	    self.writeRegister(self.mcp.IODIRA, 0x00)
 	    self.writeRegister(self.mcp.IODIRB, 0x00)
 	    self.writeRegister(self.mcp.GPIOA, 0x00)
-	    sleep(0.05)
+	    self._delay_microseconds(50000)
 	    self.writeRegister(self.mcp.GPIOB, 0x00)
+	    # initialize display
 	    self.write4bits(0x03)
-	    sleep(0.005)
+	    self._delay_microseconds(5000)
 	    self.write4bits(0x08)
-	    sleep(0.005)
+	    self._delay_microseconds(5000)
 	    self.write4bits(0x02)
-	    sleep(0.005)
+	    self._delay_microseconds(5000)
 	    self.write4bits(0x02)
-	    sleep(0.005)
+	    self._delay_microseconds(5000)
 	    self.write4bits(0x08)
-	    sleep(0.005)
-	    self.command(0x08)
-	    sleep(0.005)
-	    self.command(0x01)
-	    sleep(0.005)
-	    self.command(0x06)
-	    sleep(0.005)
-	    self.command(0x02)
-	    sleep(0.005)
-	    self.command(0x0C)
+	    self._delay_microseconds(5000)
+	    self.command(self.LCD_DISPLAYCONTROL | self.LCD_DISPLAYOFF)
+	    self._delay_microseconds(5000)
+	    self.command(self.LCD_CLEARDISPLAY)
+	    self._delay_microseconds(5000)
+	    self.command(self.LCD_ENTRYMODESET | self.displaymode)
+	    self._delay_microseconds(5000)
+	    self.command(self.LCD_RETURNHOME)
+	    self._delay_microseconds(5000)
+	    self.command(self.LCD_DISPLAYCONTROL | self.displaycontrol)
+
+	def setCursor(self, col, row):
+	    # Write to first line if out off bounds
+	    if row >= self.numlines:
+		row = 0
+	    # set location
+	    self.command(self.LCD_SETDDRAMADDR | (col + self.LCD_ROW_OFFSETS[row]))
+
+	def home(self):
+	    self.command(self.LCD_RETURNHOME)
+
+	def clear(self):
+	    self.command(self.LCD_CLEARDISPLAY)
+
+	def noDisplay(self):
+	    self.displaycontrol &= ~self.LCD_DISPLAYON
+	    self.command(self.LCD_DISPLAYCONTROL | self.displaycontrol)
+
+	def display(self):
+	    self.displaycontrol |= self.LCD_DISPLAYON
+	    self.command(self.LCD_DISPLAYCONTROL | self.displaycontrol)
+
+	def noCursor(self):
+	    self.displaycontrol &= ~self.LCD_CURSORON
+	    self.command(self.LCD_DISPLAYCONTROL | self.displaycontrol)
+
+	def cursor(self):
+	    self.displaycontrol |= self.LCD_CURSORON
+            self.command(self.LCD_DISPLAYCONTROL | self.displaycontrol)
+
+	def noBlink(self):
+            self.displaycontrol &= ~self.LCD_BLINKON
+            self.command(self.LCD_DISPLAYCONTROL | self.displaycontrol)
+
+        def blink(self):
+            self.displaycontrol |= self.LCD_BLINKON
+            self.command(self.LCD_DISPLAYCONTROL | self.displaycontrol)
+
+	def scrollDisplayLeft(self):
+	    self.command(self.LCD_CURSORSHIFT | self.LCD_DISPLAYMOVE | self.LCD_MOVELEFT )
+
+        def scrollDisplayRight(self):
+            self.command(self.LCD_CURSORSHIFT | self.LCD_DISPLAYMOVE | self.LCD_MOVERIGHT )
+
+	def leftToRight(self):
+	    self.displaymode |= self.LCD_ENTRYLEFT
+	    self.command(self.LCD_ENTRYMODESET | self.displaymode)
+
+        def rightToLeft(self):
+            self.displaymode &= ~self.LCD_ENTRYLEFT
+            self.command(self.LCD_ENTRYMODESET | self.displaymode)
+
+	def noAutoscroll(self):
+	    self.displaymode &= ~self.LCD_ENTRYSHIFTINC
+	    self.command(self.LCD_ENTRYMODESET | self.displaymode)
+
+        def autoscroll(self):
+            self.displaymode |= self.LCD_ENTRYSHIFTINC
+            self.command(self.LCD_ENTRYMODESET | self.displaymode)
 
 
     class Led:
