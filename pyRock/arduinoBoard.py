@@ -53,11 +53,11 @@ class ArduinoBoard:
         if number > 255 :
             number = 255
         for i in range(0, 8, 1):
-            if (number / (2 << (7-i))) > 0:
+            if (number / (1 << (7-i))) > 0:
                 self.led[i].setOn()
 	    else:
 		self.led[i].setOff()
-            number = number % (2 << (7-i))
+            number = number % (1 << (7-i))
 
 
     class Display:
